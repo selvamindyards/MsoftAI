@@ -3,7 +3,9 @@ import { FACES } from '../model/types';
 import { FACE_LABEL, faceFrame } from '../model/faces';
 import { addCavity, deserialize, newDesign, nextComponentId, removeCavity, serialize, setBlock } from '../model/design';
 import type { Library } from '../model/library';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CloudDesigns, DesignSummary } from '../cloud/designs';
+import { listProfiles, setApproved, setRole, type Profile } from '../cloud/profiles';
 import { Viewer } from '../render/viewer';
 
 const STORAGE_KEY = 'msoftai.design';
@@ -11,9 +13,11 @@ const ROTATIONS = [0, 90, 180, 270];
 
 type Attrs = Record<string, string>;
 
-/** Signed-in user context: account email, cloud design storage, and sign-out. */
+/** Signed-in user context: account email, role, cloud design storage, and sign-out. */
 export interface Account {
   email: string;
+  isAdmin: boolean;
+  sb: SupabaseClient;
   cloud: CloudDesigns;
   signOut: () => Promise<void>;
 }
@@ -27,6 +31,8 @@ export class App {
   private insertState = { library: '', defId: 0, face: 'top' as FaceId, x: 50, y: 50, rotation: 0, componentId: '' };
   private cloudList: DesignSummary[] = [];
   private cloudBusy = '';
+  private users: Profile[] = [];
+  private usersMsg = '';
 
   constructor(private lib: Library, panel: HTMLElement, viewport: HTMLElement, private account?: Account) {
     this.panel = panel;
@@ -40,6 +46,67 @@ export class App {
     this.viewer.frameBlock(this.design);
     this.refresh();
     void this.refreshCloudList();
+    void this.refreshUsers();
+  }
+
+  // ---- admin: user approval ----
+
+  private async refreshUsers() {
+    if (!this.account?.isAdmin) return;
+    try {
+      this.users = await listProfiles(this.account.sb);
+      this.usersMsg = '';
+    } catch (e) {
+      this.usersMsg = `Could not load users: ${(e as Error).message}`;
+    }
+    this.renderPanel();
+  }
+
+  private async approveUser(p: Profile, approved: boolean) {
+    if (!this.account?.isAdmin) return;
+    if (!approved && p.email === this.account.email) { alert('You cannot revoke your own access.'); return; }
+    try {
+      await setApproved(this.account.sb, p.user_id, approved);
+      this.usersMsg = `${approved ? 'Approved' : 'Revoked'} ${p.email}.`;
+    } catch (e) {
+      this.usersMsg = `Update failed: ${(e as Error).message}`;
+    }
+    await this.refreshUsers();
+  }
+
+  private async toggleAdmin(p: Profile) {
+    if (!this.account?.isAdmin) return;
+    if (p.email === this.account.email) { alert('You cannot change your own role.'); return; }
+    const role = p.role === 'admin' ? 'user' : 'admin';
+    if (!confirm(`Make ${p.email} ${role === 'admin' ? 'an administrator' : 'a regular user'}?`)) return;
+    try {
+      await setRole(this.account.sb, p.user_id, role);
+    } catch (e) {
+      this.usersMsg = `Update failed: ${(e as Error).message}`;
+    }
+    await this.refreshUsers();
+  }
+
+  private usersSection(open: boolean) {
+    const pending = this.users.filter((u) => !u.approved).length;
+    const tbody = this.el('tbody');
+    for (const u of this.users) {
+      const action = this.el('button', { class: u.approved ? 'link danger' : 'link' }, u.approved ? 'Revoke' : 'Approve');
+      action.onclick = () => void this.approveUser(u, !u.approved);
+      const role = this.el('button', { class: 'link' }, u.role === 'admin' ? 'admin' : 'user');
+      role.title = 'Click to change role';
+      role.onclick = () => void this.toggleAdmin(u);
+      const when = new Date(u.created_at).toLocaleDateString();
+      tbody.append(this.el('tr', u.approved ? {} : { class: 'pending' },
+        this.el('td', { title: u.email }, u.email),
+        this.el('td', {}, when),
+        this.el('td', {}, role),
+        this.el('td', {}, action)));
+    }
+    const head = this.el('thead', {}, this.el('tr', {}, this.el('th', {}, 'Email'), this.el('th', {}, 'Signed up'), this.el('th', {}, 'Role'), this.el('th', {}, '')));
+    return this.section(`Users${pending ? ` (${pending} pending)` : ''}`, open,
+      this.el('div', { class: 'hint' }, this.usersMsg || (pending ? `${pending} account${pending > 1 ? 's' : ''} waiting for approval.` : 'All accounts approved.')),
+      this.el('table', {}, head, tbody));
   }
 
   private async refreshCloudList() {
@@ -185,6 +252,11 @@ export class App {
     this.panel.replaceChildren();
     this.panel.append(this.el('h1', {}, 'MsoftAI', this.el('small', {}, 'Manifold Designer')));
     if (this.account) this.panel.append(this.accountBar());
+    if (this.account?.isAdmin) {
+      const pending = this.users.filter((u) => !u.approved).length;
+      const title = `Users${pending ? ` (${pending} pending)` : ''}`;
+      this.panel.append(this.usersSection(openState.get(title) ?? pending > 0));
+    }
     this.panel.append(this.fileSection(isOpen('File')));
     if (this.account) this.panel.append(this.cloudSection(isOpen('My designs')));
     this.panel.append(this.blockSection(isOpen('Block')));

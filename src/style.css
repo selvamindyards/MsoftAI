@@ -67,3 +67,7 @@ button.link.danger { color: #e07a7a; }
 .login-msg { min-height: 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
 .login-msg.error { color: #ff8a80; }
 .login-foot { color: var(--muted); font-size: 11px; text-align: center; margin: 16px 0 0; }
+
+/* ---- admin users ---- */
+tr.pending td { background: #3a3220; }
+#login p { color: var(--text); margin: 6px 0; }

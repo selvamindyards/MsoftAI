@@ -130,7 +130,7 @@ export class LoginView {
         this.note('Creating account...');
         const { data, error } = await this.sb.auth.signUp({ email, password, options: { emailRedirectTo: this.redirectTo() } });
         if (error) throw error;
-        if (!data.session) this.note('Account created. Check your email and click the confirmation link, then sign in.');
+        if (!data.session) this.note('Account created. Confirm your email using the link we sent, then sign in. MindYards will approve your access after that.');
       }
     } catch (e) {
       this.note((e as Error).message, true);
