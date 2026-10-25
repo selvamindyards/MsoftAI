@@ -121,7 +121,10 @@ export class LoginView {
         if (!password) return this.note('Enter your password.', true);
         this.note('Signing in...');
         const { error } = await this.sb.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          if (/not confirmed/i.test(error.message)) return this.offerResend(email);
+          throw error;
+        }
       } else {
         if (password.length < 8) return this.note('Use at least 8 characters.', true);
         this.note('Creating account...');
@@ -132,6 +135,17 @@ export class LoginView {
     } catch (e) {
       this.note((e as Error).message, true);
     }
+  }
+
+  /** Shown when sign-in fails because the address was never confirmed. */
+  private offerResend(email: string) {
+    this.note('This email address has not been confirmed yet.', true);
+    const btn = this.el('button', { type: 'button', class: 'link' }, 'Resend confirmation email');
+    btn.onclick = async () => {
+      const { error } = await this.sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: this.redirectTo() } });
+      this.note(error ? error.message : 'Confirmation email sent. Open the link, then sign in here.', !!error);
+    };
+    this.msg.append(this.el('br'), btn);
   }
 
   private async magicLink() {
