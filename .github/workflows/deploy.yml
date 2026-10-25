@@ -14,6 +14,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  CUSTOM_DOMAIN: msoftai.mindyards.in
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,6 +29,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # Enables GitHub Pages (source: GitHub Actions) on first run.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -39,3 +46,10 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Set custom domain
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/pages" -f cname="${CUSTOM_DOMAIN}" \
+            && echo "custom domain set to ${CUSTOM_DOMAIN}" \
+            || echo "::warning::Could not set custom domain via API; set it in Settings > Pages"
