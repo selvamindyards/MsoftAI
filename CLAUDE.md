@@ -13,6 +13,8 @@ Browser-based hydraulic and instrument manifold block design. A MindYards produc
 - The name is MsoftAI. Never use "MD Tools" or "MDTools" in UI, titles or docs; it is VEST's trademark. The manual is a reference for concepts only; do not copy its UI text or dialog layouts.
 - Phase 1 is manifold block design. Later: connections with computed drill depth, nets, wall-thickness and meet-list checks, machining chart, drawings, then AI features (schematic-to-layout, conversational design, catalogue ingestion).
 - The recovered cavity library (461 cavities, 632 footprint holes) is kept for now and will be rebuilt from manufacturer catalogues and standards before commercial use.
+- Design file rules (agreed 2026-10-25): everything specific to a manifold, including cavity connections and computed drill depths, lives in the design JSON. The `designs` table stores that JSON as one jsonb value per design; no per-cavity or per-connection tables. Version 2 of the format (next) adds connections and a snapshot of the library cavity definitions used, so a design opens identically after the library is rebuilt; an explicit "update from library" action replaces silent drift. Loader must upgrade version 1 files.
+- Next feature (agreed): Connect Cavity, pulled ahead of footprints-as-a-unit. Then undo/redo, footprints, instrumentation library.
 - First target customers are instrument-manifold style blocks (Emerson/Rosemount type) as well as hydraulic manifolds; an instrumentation library (NPT ports, Coplanar flange patterns) is still missing.
 
 ## Architecture
@@ -32,6 +34,7 @@ Browser-based hydraulic and instrument manifold block design. A MindYards produc
 
 - GitHub: `selvamindyards/MsoftAI`. The `gh` CLI on Selva's PC is logged in as `krionSK`, a write collaborator, not admin: pushes work, repo settings and Pages settings must be changed by Selva in the GitHub UI.
 - DNS stays at GoDaddy: CNAME `msoftai` -> `selvamindyards.github.io`.
+- `supabase/002_profiles_approval.sql` was run on 2026-10-25; first admin is selva.cad@gmail.com (the account Selva signs in with). Later migrations go in the same folder, numbered.
 - Supabase settings still to confirm: Site URL and redirect URL set to `https://msoftai.mindyards.in`; repo should be switched to Private (account is on GitHub Pro).
 
 ## Working style
