@@ -45,7 +45,10 @@ tbody tr { cursor: pointer; }
 }
 
 /* ---- account and cloud ---- */
-.account { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; margin: -6px 0 10px; }
+.account { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin: -4px 0 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #1f2430; }
+.account .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account .who b { color: var(--text); font-weight: 600; }
+button.signout { width: auto; padding: 5px 10px; white-space: nowrap; }
 button.link { width: auto; background: none; border: none; color: var(--accent); padding: 2px 4px; text-align: left; }
 button.link.danger { color: #e07a7a; }
 .account button.link { font-size: 12px; }

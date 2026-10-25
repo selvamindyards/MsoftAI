@@ -193,10 +193,16 @@ export class App {
     this.panel.append(this.cavitiesSection(title, isOpen(title)));
   }
 
+  private signOutButton() {
+    const out = this.el('button', { class: 'danger signout' }, 'Sign out');
+    out.onclick = () => { if (confirm('Sign out of MsoftAI? Unsaved work stays in this browser.')) void this.account?.signOut(); };
+    return out;
+  }
+
   private accountBar() {
-    const out = this.el('button', { class: 'link' }, 'Sign out');
-    out.onclick = () => void this.account?.signOut();
-    return this.el('div', { class: 'account' }, this.el('span', {}, this.account?.email ?? ''), out);
+    return this.el('div', { class: 'account' },
+      this.el('span', { class: 'who' }, 'Signed in as ', this.el('b', {}, this.account?.email ?? '')),
+      this.signOutButton());
   }
 
   private cloudSection(open: boolean) {
@@ -258,9 +264,11 @@ export class App {
       }
     };
 
+    const actions: Node[] = [btnNew, btnDown, btnDraw];
+    if (this.account) actions.push(this.signOutButton());
     return this.section('File', open,
       this.row('Name', name),
-      this.el('div', { class: 'actions' }, btnNew, btnDown, btnDraw),
+      this.el('div', { class: 'actions' }, ...actions),
       this.row('Open', file));
   }
 
