@@ -4,6 +4,6 @@ import { defineConfig } from 'vite';
 // and at the custom domain msoftai.mindyards.in.
 export default defineConfig({
   base: './',
-  build: { outDir: 'dist', sourcemap: true },
+  build: { outDir: 'dist', sourcemap: true, chunkSizeWarningLimit: 800 },
   test: { environment: 'node' },
 } as any);
