@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CavityDef, FootprintCavity } from './types';
 
 export class Library {
@@ -38,11 +39,17 @@ export class Library {
     return this.footprintsByIndex.get(Library.footprintKey(def.library, def.footprintIndex)) ?? [];
   }
 
-  static async load(base = './library/'): Promise<Library> {
+  /** Load from the Supabase library tables. Requires a signed-in session (row-level security). */
+  static async fromSupabase(sb: SupabaseClient): Promise<Library> {
     const [c, f] = await Promise.all([
-      fetch(`${base}cavities.json`).then((r) => r.json() as Promise<CavityDef[]>),
-      fetch(`${base}footprints.json`).then((r) => r.json() as Promise<FootprintCavity[]>),
+      sb.from('library_cavities').select('data').order('id').range(0, 4999),
+      sb.from('library_footprints').select('data').order('id').range(0, 4999),
     ]);
-    return new Library(c, f);
+    if (c.error) throw c.error;
+    if (f.error) throw f.error;
+    return new Library(
+      (c.data ?? []).map((r) => r.data as CavityDef),
+      (f.data ?? []).map((r) => r.data as FootprintCavity),
+    );
   }
 }

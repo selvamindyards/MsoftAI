@@ -3,12 +3,20 @@ import { FACES } from '../model/types';
 import { FACE_LABEL, faceFrame } from '../model/faces';
 import { addCavity, deserialize, newDesign, nextComponentId, removeCavity, serialize, setBlock } from '../model/design';
 import type { Library } from '../model/library';
+import type { CloudDesigns, DesignSummary } from '../cloud/designs';
 import { Viewer } from '../render/viewer';
 
 const STORAGE_KEY = 'msoftai.design';
 const ROTATIONS = [0, 90, 180, 270];
 
 type Attrs = Record<string, string>;
+
+/** Signed-in user context: account email, cloud design storage, and sign-out. */
+export interface Account {
+  email: string;
+  cloud: CloudDesigns;
+  signOut: () => Promise<void>;
+}
 
 export class App {
   design: Design;
@@ -17,8 +25,10 @@ export class App {
   private panel: HTMLElement;
   private status: HTMLElement;
   private insertState = { library: '', defId: 0, face: 'top' as FaceId, x: 50, y: 50, rotation: 0, componentId: '' };
+  private cloudList: DesignSummary[] = [];
+  private cloudBusy = '';
 
-  constructor(private lib: Library, panel: HTMLElement, viewport: HTMLElement) {
+  constructor(private lib: Library, panel: HTMLElement, viewport: HTMLElement, private account?: Account) {
     this.panel = panel;
     this.viewer = new Viewer(viewport);
     this.status = this.el('div', { class: 'status' });
@@ -29,6 +39,59 @@ export class App {
     this.viewer.onSelect = (id) => { this.selectedId = id; this.refresh(); };
     this.viewer.frameBlock(this.design);
     this.refresh();
+    void this.refreshCloudList();
+  }
+
+  private async refreshCloudList() {
+    if (!this.account) return;
+    try {
+      this.cloudList = await this.account.cloud.list();
+    } catch (e) {
+      this.cloudBusy = `Cloud error: ${(e as Error).message}`;
+    }
+    this.renderPanel();
+  }
+
+  private async cloudSave() {
+    if (!this.account) return;
+    this.cloudBusy = 'Saving...';
+    this.renderPanel();
+    try {
+      await this.account.cloud.save(this.design);
+      this.cloudBusy = `Saved "${this.design.name}" to your account.`;
+      this.persist();
+    } catch (e) {
+      this.cloudBusy = `Save failed: ${(e as Error).message}`;
+    }
+    await this.refreshCloudList();
+  }
+
+  private async cloudOpen(id: string) {
+    if (!this.account) return;
+    this.cloudBusy = 'Opening...';
+    this.renderPanel();
+    try {
+      this.design = await this.account.cloud.load(id);
+      this.selectedId = null;
+      this.viewer.frameBlock(this.design);
+      this.cloudBusy = '';
+      this.refresh();
+    } catch (e) {
+      this.cloudBusy = `Open failed: ${(e as Error).message}`;
+      this.renderPanel();
+    }
+  }
+
+  private async cloudDelete(id: string, name: string) {
+    if (!this.account || !confirm(`Delete "${name}" from your account? This cannot be undone.`)) return;
+    try {
+      await this.account.cloud.remove(id);
+      if (this.design.id === id) delete this.design.id;
+      this.cloudBusy = `Deleted "${name}".`;
+    } catch (e) {
+      this.cloudBusy = `Delete failed: ${(e as Error).message}`;
+    }
+    await this.refreshCloudList();
   }
 
   private restore(): Design | null {
@@ -121,11 +184,40 @@ export class App {
 
     this.panel.replaceChildren();
     this.panel.append(this.el('h1', {}, 'MsoftAI', this.el('small', {}, 'Manifold Designer')));
+    if (this.account) this.panel.append(this.accountBar());
     this.panel.append(this.fileSection(isOpen('File')));
+    if (this.account) this.panel.append(this.cloudSection(isOpen('My designs')));
     this.panel.append(this.blockSection(isOpen('Block')));
     this.panel.append(this.insertSection(isOpen('Insert')));
     const title = `Cavities (${this.design.cavities.length})`;
     this.panel.append(this.cavitiesSection(title, isOpen(title)));
+  }
+
+  private accountBar() {
+    const out = this.el('button', { class: 'link' }, 'Sign out');
+    out.onclick = () => void this.account?.signOut();
+    return this.el('div', { class: 'account' }, this.el('span', {}, this.account?.email ?? ''), out);
+  }
+
+  private cloudSection(open: boolean) {
+    const save = this.el('button', { class: 'primary' }, this.design.id ? 'Save to account' : 'Save to account as new');
+    save.onclick = () => void this.cloudSave();
+    const tbody = this.el('tbody');
+    for (const d of this.cloudList) {
+      const open = this.el('button', { class: 'link' }, d.name);
+      open.onclick = () => void this.cloudOpen(d.id);
+      const del = this.el('button', { class: 'link danger' }, 'x');
+      del.title = 'Delete';
+      del.onclick = () => void this.cloudDelete(d.id, d.name);
+      const when = new Date(d.updated_at).toLocaleString();
+      tbody.append(this.el('tr', d.id === this.design.id ? { class: 'sel' } : {},
+        this.el('td', {}, open), this.el('td', {}, when), this.el('td', { style: 'width:28px' }, del)));
+    }
+    const table = this.el('table', {}, tbody);
+    return this.section('My designs', open,
+      this.el('div', { class: 'actions' }, save),
+      this.el('div', { class: 'hint' }, this.cloudBusy || (this.cloudList.length ? 'Click a design to open it.' : 'No designs saved to your account yet.')),
+      table);
   }
 
   private fileSection(open: boolean) {

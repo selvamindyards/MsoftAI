@@ -43,3 +43,24 @@ tbody tr { cursor: pointer; }
   #panel, .status, #drawing button { display: none !important; }
   #drawing { position: static; }
 }
+
+/* ---- account and cloud ---- */
+.account { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; margin: -6px 0 10px; }
+button.link { width: auto; background: none; border: none; color: var(--accent); padding: 2px 4px; text-align: left; }
+button.link.danger { color: #e07a7a; }
+.account button.link { font-size: 12px; }
+
+/* ---- sign-in page ---- */
+#login { position: fixed; inset: 0; z-index: 100; background: radial-gradient(1200px 600px at 30% 20%, #27304a, var(--bg)); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#login[hidden] { display: none; }
+.login-card { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.login-card h1 { font-size: 22px; margin: 0 0 16px; }
+.login-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.login-tabs button { background: #1a1f2a; }
+.login-tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.login-form { display: flex; flex-direction: column; gap: 8px; }
+.login-form input { padding: 9px 10px; font-size: 14px; }
+.login-form button { padding: 9px; }
+.login-msg { min-height: 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.login-msg.error { color: #ff8a80; }
+.login-foot { color: var(--muted); font-size: 11px; text-align: center; margin: 16px 0 0; }

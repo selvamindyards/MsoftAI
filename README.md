@@ -28,3 +28,14 @@ The site is served at https://msoftai.mindyards.in (CNAME in `public/`).
 from the legacy data file. The library will be rebuilt from manufacturer catalogues and standards.
 
 Copyright MindYards. All rights reserved.
+
+## Sign-in and cloud storage
+
+Authentication and per-user design storage use Supabase.
+
+1. Create a Supabase project. In the SQL editor run `supabase/schema.sql`, then `supabase/seed_library.sql`.
+2. In Authentication, URL Configuration, set the Site URL to `https://msoftai.mindyards.in` and add it to the redirect URLs.
+3. Put the project URL and anon key into `src/auth/config.ts`.
+
+The cavity library is read from the `library_cavities` and `library_footprints` tables, which only signed-in users can read.
+`data/library/*.json` is the development copy and is not shipped to the site.

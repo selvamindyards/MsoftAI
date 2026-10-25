@@ -91,6 +91,8 @@ export interface CavityInstance {
 
 export interface Design {
   version: 1;
+  /** Cloud id, set once the design has been saved to the user's account. */
+  id?: string;
   name: string;
   units: Units;
   block: Block;
