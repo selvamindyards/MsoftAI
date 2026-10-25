@@ -1,0 +1,23 @@
+{
+  "name": "msoftai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MsoftAI - browser-based hydraulic and instrument manifold block design by MindYards",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "convert-library": "node tools/convert-library.mjs"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}
