@@ -1,4 +1,4 @@
-import type { CavityInstance, Design, FaceId, Units } from '../model/types';
+import type { CavityDef, CavityInstance, Design, FaceId, Units } from '../model/types';
 import { FACES } from '../model/types';
 import { FACE_LABEL, faceFrame } from '../model/faces';
 import { addCavity, deserialize, newDesign, nextComponentId, removeCavity, serialize, setBlock } from '../model/design';
@@ -49,10 +49,28 @@ export class App {
     this.persist();
     this.renderPanel();
     const d = this.design;
+    if (this.viewer.isPlacing) return; // placement mode owns the status line
     const sel = d.cavities.find((c) => c.id === this.selectedId);
     this.status.textContent = sel
       ? `${sel.componentId}: ${this.lib.get(sel.defId)?.name ?? '?'} on ${FACE_LABEL[sel.face]} at X ${sel.x} Y ${sel.y} ${d.units}`
       : `${d.name} | ${d.block.length} x ${d.block.width} x ${d.block.height} ${d.units} | ${d.cavities.length} cavities | click a cavity to select, drag to orbit`;
+  }
+
+  /** Interactive placement: hover a face, the cavity follows the pointer, click to confirm. */
+  private startPlacement(def: CavityDef, rotation: number, label: string, onPlace: (face: FaceId, x: number, y: number) => void) {
+    const idle = `${label}: hover a face of the block, click to place. Right-click or Esc to cancel.`;
+    this.status.textContent = idle;
+    this.viewer.beginPlacement({
+      def,
+      rotation,
+      onHover: (hit) => {
+        this.status.textContent = hit
+          ? `${label} on ${FACE_LABEL[hit.face]} at X ${hit.x} Y ${hit.y} ${this.design.units}. Click to place, Esc to cancel.`
+          : idle;
+      },
+      onPlace: (face, x, y) => { onPlace(face, x, y); this.refresh(); },
+      onCancel: () => this.refresh(),
+    });
   }
 
   // ---- small DOM helpers ----
@@ -192,14 +210,19 @@ export class App {
     const cid = this.el('input', { value: st.componentId || nextComponentId(d, prefix), placeholder: 'Component ID' });
     cid.onchange = () => { st.componentId = cid.value; };
 
-    const btnInsert = this.el('button', { class: 'primary' }, 'Insert cavity');
-    btnInsert.onclick = () => {
+    const place = (face: FaceId, x: number, y: number) => {
       if (!def) return;
-      const inst = addCavity(d, def.id, st.face, st.x, st.y, cid.value || nextComponentId(d, prefix), st.rotation);
+      const inst = addCavity(d, def.id, face, x, y, cid.value || nextComponentId(d, prefix), st.rotation);
       st.componentId = '';
       this.selectedId = inst.id;
-      this.refresh();
     };
+    const btnInsert = this.el('button', { class: 'primary' }, 'Insert on model');
+    btnInsert.onclick = () => {
+      if (!def) return;
+      this.startPlacement(def, st.rotation, `Placing ${cid.value || nextComponentId(d, prefix)} (${def.name})`, place);
+    };
+    const btnTyped = this.el('button', {}, 'Insert at X, Y');
+    btnTyped.onclick = () => { place(st.face, st.x, st.y); this.refresh(); };
 
     const info = def
       ? `${def.type} | ${def.steps.length} steps | dia ${def.steps[0]?.diameter ?? '?'} | ${def.ports.length} ports${def.comments ? ' | ' + def.comments : ''}`
@@ -211,7 +234,8 @@ export class App {
       this.row('Face', faceSel),
       this.row(`X, Y, rot (face ${frame.uLength} x ${frame.vLength})`, xy),
       this.row('ID', cid),
-      this.el('div', { class: 'actions' }, btnInsert));
+      this.el('div', { class: 'actions' }, btnInsert, btnTyped),
+      this.el('div', { class: 'hint' }, 'Insert on model: hover a face, the cavity follows the pointer, click to place.'));
   }
 
   private cavitiesSection(title: string, open: boolean) {
@@ -243,6 +267,12 @@ export class App {
       this.num(sel.x, (v) => { sel.x = v; this.refresh(); }, '0.1'),
       this.num(sel.y, (v) => { sel.y = v; this.refresh(); }, '0.1'),
       this.rotationSelect(sel.rotation, (v) => { sel.rotation = v; this.refresh(); }));
+    const move = this.el('button', {}, 'Move on model');
+    move.onclick = () => {
+      const def = this.lib.get(sel.defId);
+      if (!def) return;
+      this.startPlacement(def, sel.rotation, `Moving ${sel.componentId}`, (face, x, y) => { sel.face = face; sel.x = x; sel.y = y; });
+    };
     const del = this.el('button', { class: 'danger' }, 'Delete');
     del.onclick = () => { removeCavity(d, sel.id); this.selectedId = null; this.refresh(); };
     const dup = this.el('button', {}, 'Copy');
@@ -257,7 +287,7 @@ export class App {
       this.row('ID', id),
       this.row('Face', face),
       this.row('X, Y, rot', xy),
-      this.el('div', { class: 'actions' }, dup, del));
+      this.el('div', { class: 'actions' }, move, dup, del));
   }
 
   private showDrawing() {

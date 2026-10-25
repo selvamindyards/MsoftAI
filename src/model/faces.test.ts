@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { faceToWorld, faceFrame, rotateLocal, faceDepth } from './faces';
+import { faceToWorld, faceFrame, rotateLocal, faceDepth, worldToFace, faceFromNormal } from './faces';
 import { FACES, type Block } from './types';
 
 const block: Block = { length: 200, width: 120, height: 80, material: 'Al' };
@@ -24,6 +24,23 @@ describe('face frames', () => {
 
   it('places the top face centre on the top surface', () => {
     expect(faceToWorld(block, 'top', 100, 60)).toEqual([100, 80, 60]);
+  });
+
+  it('round-trips face-local coordinates through world space', () => {
+    for (const face of FACES) {
+      const [x, y] = worldToFace(block, face, faceToWorld(block, face, 37.5, 12.25));
+      expect(x).toBeCloseTo(37.5, 9);
+      expect(y).toBeCloseTo(12.25, 9);
+    }
+  });
+
+  it('identifies a face from its outward normal', () => {
+    expect(faceFromNormal([0, 1, 0])).toBe('top');
+    expect(faceFromNormal([0, -1, 0])).toBe('bottom');
+    expect(faceFromNormal([0, 0, 1])).toBe('front');
+    expect(faceFromNormal([0, 0, -1])).toBe('back');
+    expect(faceFromNormal([-1, 0, 0])).toBe('left');
+    expect(faceFromNormal([1, 0, 0])).toBe('right');
   });
 
   it('reports drilling depth per face', () => {

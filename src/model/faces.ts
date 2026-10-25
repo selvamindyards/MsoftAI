@@ -47,6 +47,23 @@ export function faceToWorld(block: Block, face: FaceId, x: number, y: number): V
   ];
 }
 
+/** Inverse of faceToWorld: project a world point onto the face and return face-local (x, y). */
+export function worldToFace(block: Block, face: FaceId, p: Vec3): [number, number] {
+  const f = faceFrame(block, face);
+  const d: Vec3 = [p[0] - f.origin[0], p[1] - f.origin[1], p[2] - f.origin[2]];
+  const x = d[0] * f.u[0] + d[1] * f.u[1] + d[2] * f.u[2];
+  const y = d[0] * f.v[0] + d[1] * f.v[1] + d[2] * f.v[2];
+  return [x, y];
+}
+
+/** Which face has this outward normal (axis aligned). */
+export function faceFromNormal(n: Vec3): FaceId | null {
+  const ax = Math.abs(n[0]), ay = Math.abs(n[1]), az = Math.abs(n[2]);
+  if (ay >= ax && ay >= az) return n[1] > 0 ? 'top' : 'bottom';
+  if (az >= ax) return n[2] > 0 ? 'front' : 'back';
+  return n[0] > 0 ? 'right' : 'left';
+}
+
 /** Depth available for drilling into this face, i.e. the block dimension along n. */
 export function faceDepth(block: Block, face: FaceId): number {
   switch (face) {
